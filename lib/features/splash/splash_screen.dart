@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kids_learning/core/database/services/audio_services.dart';
 import 'splash_controller.dart';
 import 'splash_responsive.dart';
 import 'splash_widgets.dart';
@@ -32,8 +33,8 @@ class _SplashScreenState extends State<SplashScreen>
     // ✅ Waits full 5 seconds
     final lastAge = await _controller.getNavigationRoute();
 
-// AudioService().playBackgroundMusic();
-
+  AudioService().playMenuMusic();
+  
     if (!mounted) return;
 
     if (lastAge != null) {

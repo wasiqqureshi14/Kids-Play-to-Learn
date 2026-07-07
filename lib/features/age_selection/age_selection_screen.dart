@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kids_learning/core/database/services/audio_services.dart';
 import 'package:kids_learning/features/age_selection/widgets/age_selection_card.dart';
 import 'age_selection_controller.dart';
 import 'age_selection_responsive.dart';
@@ -20,6 +21,8 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen>
   void initState() {
     super.initState();
     _controller.init(this);
+
+      AudioService().playMenuMusic();
   }
 
   @override

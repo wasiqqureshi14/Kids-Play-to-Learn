@@ -29,7 +29,7 @@ void main() async {
 
   await AudioService().init();
 
-  AudioService().playBackgroundMusic();   
+  AudioService().playMenuMusic();   
 }
 
 class MyApp extends StatelessWidget {

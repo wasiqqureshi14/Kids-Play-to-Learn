@@ -1,7 +1,6 @@
-
-
 import 'package:flutter/material.dart';
-import 'package:kids_learning/features/game_intro/game_intro_screen.dart';
+import 'package:kids_learning/core/database/services/audio_services.dart';
+import 'package:kids_learning/features/age_selection/age_selection_screen.dart';
 import 'package:kids_learning/features/games/abc_learn/abc_learn_game.dart';
 import 'package:kids_learning/features/games/shape_match/shape_match_game.dart';
 import 'package:kids_learning/features/games/shared/widgets/result_dialog.dart';
@@ -30,6 +29,8 @@ class _GameShellScreenState extends State<GameShellScreen>
   void initState() {
     super.initState();
     _controller.init(this, widget.config);
+
+    AudioService().playGameMusic();
   }
 
   @override
@@ -46,10 +47,12 @@ class _GameShellScreenState extends State<GameShellScreen>
 
   void _onPause() {
     _controller.pauseGame();
+    AudioService().pauseGameMusic();
   }
 
   void _onResume() {
     _controller.resumeGame();
+    AudioService().resumeGameMusic();
   }
 
   void _onPlayAgain() {
@@ -62,11 +65,11 @@ class _GameShellScreenState extends State<GameShellScreen>
   }
 
   void _onHome() {
+    AudioService().stopGameMusic();
   Navigator.pushAndRemoveUntil(
     context,
     MaterialPageRoute(
-      builder: (_) => GameIntroScreen(
-        ageGroup: widget.config.ageGroup,
+      builder: (_) => AgeSelectionScreen(
       ),
     ),
     (route) => false,   // removes all previous routes
@@ -74,11 +77,13 @@ class _GameShellScreenState extends State<GameShellScreen>
 }
 
 void _onSettings() {
-  _controller.pauseGame();    // ← pause game when settings opens
+  _controller.pauseGame();  
+  AudioService().pauseGameMusic();  
   Navigator.pushNamed(context, '/settings').then((_) {
     // ← resume game when coming back from settings
     if (_controller.isPaused) {
       _controller.resumeGame();
+       AudioService().resumeGameMusic();
     }
   });
 }

@@ -1,100 +1,156 @@
-
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:kids_learning/core/database/services/settings_service.dart';
 
 class AudioService {
-
-  // Singleton — one instance across whole app
   static final AudioService _instance = AudioService._internal();
   factory AudioService() => _instance;
   AudioService._internal();
 
+  // ── One music player, one sfx player ──────────
   final AudioPlayer _musicPlayer = AudioPlayer();
   final AudioPlayer _sfxPlayer   = AudioPlayer();
+
   final SettingsService _settings = SettingsService();
 
-  bool _musicEnabled = true;
-  bool _soundEnabled = true;
-  bool _initialized = false;
+  bool _musicEnabled  = true;
+  bool _soundEnabled  = true;
+  bool _initialized   = false;
+  bool _isGameMusic   = false;  // tracks which music is current
 
-  // ── INIT — call once at app start ─────────────
+  // ──────────────────────────────────────────────
+  // INIT
+  // ──────────────────────────────────────────────
   Future<void> init() async {
-    _musicEnabled = await _settings.isMusicEnabled();
-    _soundEnabled = await _settings.isSoundEnabled();
+    if (_initialized) return;
+    try {
+      _musicEnabled = await _settings.isMusicEnabled();
+      _soundEnabled = await _settings.isSoundEnabled();
 
-    // Loop background music
-   try {
-      await _musicPlayer.setReleaseMode(ReleaseMode.loop);
-      await _musicPlayer.setVolume(0.45);
-      _initialized = true;
+      await _musicPlayer.setVolume(0.35);
+      await _musicPlayer.setLoopMode(LoopMode.one);
 
-      await _sfxPlayer.setReleaseMode(ReleaseMode.stop);
       await _sfxPlayer.setVolume(1.0);
-      await _sfxPlayer.setPlayerMode(PlayerMode.lowLatency); 
+
+      // ✅ After SFX finishes → restore music volume
+      _sfxPlayer.playerStateStream.listen((state) {
+        if (state.processingState == ProcessingState.completed) {
+          _musicPlayer.setVolume(_musicEnabled ? 0.35 : 0);
+        }
+      });
+
+      _initialized = true;
+      print('✅ AudioService initialized');
     } catch (e) {
-      // ✅ Never crash app if audio setup fails
-      print('Audio init failed: $e');
+      print('❌ Init failed: $e');
     }
   }
 
-  // ── BACKGROUND MUSIC ──────────────────────────
-  Future<void> playBackgroundMusic() async {
+  // ──────────────────────────────────────────────
+  // MENU MUSIC
+  // ──────────────────────────────────────────────
+  Future<void> playMenuMusic() async {
     if (!_musicEnabled) return;
-   try {
-      await _musicPlayer.play(AssetSource('audio/happy_for_kid.mp3'));
+    try {
+      _isGameMusic = false;
+      await _musicPlayer.setAsset('assets/audio/happy_for_kid.mp3');
+      await _musicPlayer.setLoopMode(LoopMode.one);
+      await _musicPlayer.setVolume(0.35);
+      await _musicPlayer.play();
+      print('🎵 Menu music playing');
     } catch (e) {
-      // ✅ Just log it — never throw, never block UI
-      print('Music play failed: $e');
+      print('❌ Menu music failed: $e');
     }
-  
   }
 
-   Future<void> pauseMusic() async {
+  // ──────────────────────────────────────────────
+  // GAME MUSIC
+  // ──────────────────────────────────────────────
+  Future<void> playGameMusic() async {
+    if (!_musicEnabled) return;
+    try {
+      _isGameMusic = true;
+      await _musicPlayer.setAsset('assets/audio/game_music.mp3');
+      await _musicPlayer.setLoopMode(LoopMode.one);
+      await _musicPlayer.setVolume(0.35);
+      await _musicPlayer.play();
+      print('🎮 Game music playing');
+    } catch (e) {
+      print('❌ Game music failed: $e');
+    }
+  }
+
+  Future<void> stopGameMusic() async {
+    try {
+      await _musicPlayer.stop();
+    } catch (e) {}
+  }
+
+  Future<void> pauseGameMusic() async {
     try {
       await _musicPlayer.pause();
-    } catch (e) {
-      print('Music pause failed: $e');
-    }
+    } catch (e) {}
   }
 
-  Future<void> resumeMusic() async {
+  Future<void> resumeGameMusic() async {
     if (!_musicEnabled) return;
-   try {
-      await _musicPlayer.resume();
-    } catch (e) {
-      print('Music resume failed: $e');
-    }
-  
+    try {
+      await _musicPlayer.play();
+    } catch (e) {}
   }
 
-  Future<void> stopMusic() async {
-    await _musicPlayer.stop();
-  }
-
-  // ── SOUND EFFECTS ─────────────────────────────
+  // ──────────────────────────────────────────────
+  // SOUND EFFECTS
+  // ✅ Duck music → play SFX → auto restore
+  // ──────────────────────────────────────────────
   Future<void> playCorrect() async {
     if (!_soundEnabled) return;
-    await _sfxPlayer.play(AssetSource('audio/correct-answer-sound.mp3'));
+    try {
+      // Duck music to 10%
+      await _musicPlayer.setVolume(0.10);
+
+      // Play correct sound
+      await _sfxPlayer.setAsset('assets/audio/correct-answer-sound.mp3');
+      await _sfxPlayer.seek(Duration.zero);
+      await _sfxPlayer.play();
+
+      print('✅ Correct buzz');
+    } catch (e) {
+      print('❌ Correct failed: $e');
+      // Safety — restore music even if SFX fails
+      await _musicPlayer.setVolume(0.35);
+    }
   }
 
   Future<void> playWrong() async {
     if (!_soundEnabled) return;
-    await _sfxPlayer.play(AssetSource('audio/wrong-answer.mp3'));
+    try {
+      // Duck music to 10%
+      await _musicPlayer.setVolume(0.10);
+
+      // Play wrong sound
+      await _sfxPlayer.setAsset('assets/audio/wrong-answer.mp3');
+      await _sfxPlayer.seek(Duration.zero);
+      await _sfxPlayer.play();
+
+      print('❌ Wrong buzz');
+    } catch (e) {
+      print('❌ Wrong failed: $e');
+      // Safety — restore music even if SFX fails
+      await _musicPlayer.setVolume(0.35);
+    }
   }
 
-  Future<void> playButtonTap() async {
-    if (!_soundEnabled) return;
-    await _sfxPlayer.play(AssetSource('audio/tap.mp3'));
-  }
-
-  // ── TOGGLE ────────────────────────────────────
+  // ──────────────────────────────────────────────
+  // SETTINGS TOGGLES
+  // ──────────────────────────────────────────────
   Future<void> toggleMusic(bool enabled) async {
     _musicEnabled = enabled;
     await _settings.setMusicEnabled(enabled);
     if (enabled) {
-      await resumeMusic();
+      await _musicPlayer.setVolume(0.35);
+      await _musicPlayer.play();
     } else {
-      await pauseMusic();
+      await _musicPlayer.pause();
     }
   }
 
@@ -103,13 +159,6 @@ class AudioService {
     await _settings.setSoundEnabled(enabled);
   }
 
-  // ── GETTERS ───────────────────────────────────
   bool get isMusicEnabled => _musicEnabled;
   bool get isSoundEnabled => _soundEnabled;
-
-  // ── DISPOSE ───────────────────────────────────
-  Future<void> dispose() async {
-    await _musicPlayer.dispose();
-    await _sfxPlayer.dispose();
-  }
 }
